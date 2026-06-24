@@ -41,6 +41,10 @@ class UserController extends Controller
 
       // Get the authenticated admin
       $admin = auth()->user();
+      
+      // Fetch latest news
+      $latestNews = News::orderBy('published_date', 'desc')->take(3)->get();
+      
       // Fetch total users
       $totalUsers = User::count();
 
@@ -91,6 +95,7 @@ class UserController extends Controller
       // Pass data to the view
       return view('dashboard', compact(
         'admin',
+        'latestNews',
         'totalUsers',
         'totalEvents',
         'totalDonations',
@@ -110,7 +115,7 @@ class UserController extends Controller
       // Fetch latest news 
       $latestNews = News::orderBy('published_date', 'desc')->take(3)->get();
 
-      // Fetch upcoming events 
+      // Fetch upcoming events (all active events for staff)
       $upcomingEvents = Events::where('start_date', '>=', Carbon::now())
         ->where('is_active', 1) 
         ->orderBy('start_date', 'asc')
@@ -132,6 +137,23 @@ class UserController extends Controller
       $eventParticipation = Events::select('name', 'registered_count')->where('is_active', true)
         ->get();
 
+      // Format all active events for FullCalendar (staff can view all events)
+      $allEvents = Events::where('is_active', true)
+        ->where('start_date', '>=', Carbon::now()->subMonths(1))
+        ->get();
+      
+      $formattedEvents = $allEvents->map(function ($event) {
+        return [
+          'title' => $event->name,
+          'start' => $event->start_date,
+          'end' => Carbon::parse($event->end_date)->addDay()->toDateString(),
+          'allDay' => true,
+          'url' => route('events.show', $event->id),
+          'backgroundColor' => '#4e73df',
+          'borderColor' => '#4e73df'
+        ];
+      });
+
       // Pass data to the view
       return view('dashboard', compact(
         'user',
@@ -141,6 +163,7 @@ class UserController extends Controller
         'recentInquiries',
         'donationHistory',
         'eventParticipation',
+        'formattedEvents'
       ));
 
     } else {
